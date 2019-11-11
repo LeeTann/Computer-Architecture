@@ -2,11 +2,6 @@
 
 import sys
 
-LDI = 0b10000010 # LDI R0,8   
-PRN = 0b01000111 # PRN R0     
-HLT = 0b00000001 # HLT
-MUL = 0b10100010
-
 class CPU:
     """Main CPU class."""
 
@@ -16,26 +11,27 @@ class CPU:
         self.ram = [0] * 256 # 256 bytes of memory for instructions
         self.reg = [0] * 8 # 8 general-purpose registers
         self.pc = 0 # helps distinguish between operands and instructions
-        self.hlt = False
+        self.reg[7] = 255
+        self.sp = self.reg[7]
 
-        self.ops = {
-            LDI: self.op_ldi,
-            HLT: self.op_hlt,
-            PRN: self.op_prn,
-            MUL: self.op_mul
-        }
+    #     self.ops = {
+    #         LDI: self.op_ldi,
+    #         HLT: self.op_hlt,
+    #         PRN: self.op_prn,
+    #         MUL: self.op_mul
+    #     }
 
-    def op_ldi(self, address, value):
-        self.reg[address] = value
+    # def op_ldi(self, address, value):
+    #     self.reg[address] = value
 
-    def op_prn(self, address, operand_b):
-        print(self.reg[address])
+    # def op_prn(self, address, operand_b):
+    #     print(self.reg[address])
 
-    def op_hlt(self, operand_a, operand_b):
-        self.hlt = True
+    # def op_hlt(self, operand_a, operand_b):
+    #     self.hlt = True
 
-    def op_mul(self, address1, address2):
-        self.alu('MUL', address1, address2)
+    # def op_mul(self, address1, address2):
+    #     self.alu('MUL', address1, address2)
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -111,25 +107,46 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
+        LDI = 0b10000010 # LDI R0,8   
+        PRN = 0b01000111 # PRN R0     
+        HLT = 0b00000001 # HLT
+        MUL = 0b10100010      
+        PUSH = 0b01000101
+        POP = 0b01000110
 
-        while not self.hlt:
+        running = True
+
+        while running:
             command = self.ram_read(self.pc) # get instructions
 
             operand_a = self.ram_read(self.pc + 1) # reg location
             operand_b = self.ram_read(self.pc + 2) # value
 
-            operand_size = command >> 6 # get operand size by shifting 6
-            instruction_set = ((command >> 4) & 0b1) == 1
+            # operand_size = command >> 6 # get operand size by shifting 6
+            # instruction_set = ((command >> 4) & 0b1) == 1
 
-            # if command == LDI:
-            #     self.reg[operand_a] = operand_b
-            # elif command == PRN:
-            #     print(self.reg[operand_a])
-            # elif command == HLT:
-            #     self.hlt = True
+            if command == LDI:
+                self.reg[operand_a] = operand_b
+                self.pc += 3
 
-            if command in self.ops:
-                self.ops[command](operand_a, operand_b)
+            elif command == PRN:
+                operand_a = self.ram[self.pc + 1]
+                print(self.reg[operand_a])
+                self.pc += 2
+            elif command == MUL:
 
-            if not instruction_set:
-                self.pc += operand_size + 1
+                self.alu("MUL", operand_a, operand_b)
+                self.pc += 3
+
+            elif command == HLT:
+                running = False
+
+            elif command == PUSH:
+                self.sp -= 1
+                self.ram[self.sp] = self.reg[operand_a]
+                self.pc += 2
+            
+            elif command == POP:
+                self.reg[operand_a] = self.ram[self.sp]
+                self.sp += 1
+                self.pc += 2
